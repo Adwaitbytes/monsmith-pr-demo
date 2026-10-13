@@ -18,6 +18,10 @@ contract StakingVault {
 
     error NothingStaked();
     error TransferFailed();
+    error NotOwner();
+    error FeeTooHigh();
+
+    uint256 public constant MAX_FEE_BPS = 1_000;
 
     constructor() {
         owner = msg.sender;
@@ -56,15 +60,17 @@ contract StakingVault {
         uint256 reward = rewardOf[msg.sender];
         if (reward == 0) revert NothingStaked();
 
+        rewardOf[msg.sender] = 0;
+
         (bool ok, ) = msg.sender.call{value: reward}("");
         if (!ok) revert TransferFailed();
-
-        rewardOf[msg.sender] = 0;
         emit RewardsClaimed(msg.sender, reward);
     }
 
     /// @notice The share of each distribution the protocol keeps.
     function setFee(uint256 newFeeBps) external {
+        if (msg.sender != owner) revert NotOwner();
+        if (newFeeBps > MAX_FEE_BPS) revert FeeTooHigh();
         feeBps = newFeeBps;
         emit FeeChanged(newFeeBps);
     }
